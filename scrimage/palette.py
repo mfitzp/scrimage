@@ -29,13 +29,6 @@ def distance(c1, c2):
     )
 
 
-def pil_to_tuples(rgb):
-    result = []
-    for r, g, b in zip(rgb[::3], rgb[1::3], rgb[2::3]):
-        result.append((r,g,b))
-    return result
-
-
 # SAM Coupe palette as a list of tuples.
 SAM_PALETTE = [get_sam_palette(i) for i in range(128)]
 
@@ -44,6 +37,37 @@ RGB_TO_SAM = {
     c: i for i, c in enumerate(SAM_PALETTE)
 }
 
+FLATTENED_SAM_PALETTE = [c for i in SAM_PALETTE for c in i]
+
 # An image containing the SAM Coupe palette, for quantizing.
 SAM_PALETTE_IMAGE = Image.new('P', (128, 128))
-SAM_PALETTE_IMAGE.putpalette(c for i in SAM_PALETTE for c in i)
+SAM_PALETTE_IMAGE.putpalette(FLATTENED_SAM_PALETTE)
+
+
+def pil_to_tuples(rgb):
+    result = []
+    for r, g, b in zip(rgb[::3], rgb[1::3], rgb[2::3]):
+        result.append((r,g,b))
+    return result
+
+
+def convert_image_to_sam_palette(image, colors=16):
+    new_palette = []
+    rgb = image.getpalette()[:colors*3]
+    for r, g, b in zip(rgb[::3], rgb[1::3], rgb[2::3]):
+
+        def distance_to_color(o):
+            return distance(o, (r, g, b))
+
+        spalette = sorted(SAM_PALETTE, key=distance_to_color)
+        new_palette.append(spalette[0])
+
+    palette = [c for i in new_palette for c in i]
+    image.putpalette(palette)
+    return image
+
+
+
+def pil_to_sam_palette(pilpal):
+    palette = pil_to_tuples(pilpal)
+    return [RGB_TO_SAM[c] for c in palette]

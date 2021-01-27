@@ -11,12 +11,42 @@ parser = argparse.ArgumentParser(description='Convert SAM Coupe SCREEN$ files to
 parser.add_argument('screen', type=str, nargs='+',
                     help='source SCREEN$ file(s) to process.')
 
-# parser.add_argument('--palette', '-p', type=int, choices=[0, 1], default=0, help='Palette to use (0, 1) from the screen: 2nd palette used for flashing effects.')
-
 # We can easily support any other formats.
 parser.add_argument('--format', '-f', type=str.lower, choices=['png', 'bmp', 'gif'], default='PNG', help='Output file format, one of (PNG, BMP, GIF).')
 parser.add_argument('--outfile', '-o', type=str, help='Output file. Will output to {filename}.ext if not provided.')
 
+
+
+def generate_image(pixels, indexed_palette):
+    """
+    Create an RGB Pillow image from an array of pixels & an indexed palette.
+    """
+    irgb = b''
+    for p in pixels:
+        irgb += bytes(indexed_palette[p])
+
+    image = Image.frombytes('RGB', (256, 192), irgb)
+    return image
+
+
+def apply_line_interrupts(image, lineint, palette, indexed_palette):
+
+    pixels = image.load()
+
+    for y, c, p1, p2 in zip(lineint[::4], lineint[1::4], lineint[2::4], lineint[3::4]):
+
+        p = p1 if palette == 0 else p2
+
+        oldcolor = indexed_palette[c]
+        newcolor = SAM_PALETTE[p]
+
+        # This is inefficient (numpy?) but we've got small images.
+        for yp in range(y+1, 192):
+            for x in range(0, 256):
+                if pixels[x, yp] == oldcolor:
+                    pixels[x, yp] = newcolor
+
+        indexed_palette[c] = newcolor
 
 def main():
 
@@ -25,6 +55,8 @@ def main():
     if len(args.screen) > 1 and args.outfile:
         print("Cannot specify output filename when processing multiple files.")
         exit(1)
+
+
 
     for fn in args.screen:
 
@@ -64,20 +96,25 @@ def main():
         extra4_b = palette_data[36:40] # repeat
         lineint = palette_data[40:-1]  # ends FF
 
-        if palette_a != palette_b:
-            print("Two palettes differ, screen was flashing.")
-
-        if extra4_a != extra4_b:
-            print("Mismatch in 4 bytes?")
 
         # Get a list of 3-tuples.
-        pindex = [SAM_PALETTE[i] for i in palette_a]
+        palette_index_a = [SAM_PALETTE[i] for i in palette_a]
+        image_a = generate_image(pixels, palette_index_a)
 
-        irgb = b''
-        for p in pixels:
-            irgb += bytes(pindex[p])
+        # Normally these are not set.
+        palette_index_b = None
+        image_b = None
 
-        image = Image.frombytes('RGB', (256, 192), irgb)
+        if palette_a != palette_b:
+            if args.format == 'gif':
+                palette_index_b = [SAM_PALETTE[i] for i in palette_b]
+                image_b = generate_image(pixels, palette_index_b)
+
+            else:
+                print("Two palettes differ, screen was flashing. Use GIF export to capture animation.")
+
+        if extra4_a != extra4_b:
+            print("Mismatch in 4 bytes? I don't know what this means, do you?")
 
         # If we have line interrupts, we need to change the color from particular points
         # in the image downwards. Interrupts are stored as 4-bytes (position, palette, color, color)
@@ -93,24 +130,19 @@ def main():
 
         if lineint:
             # Get a pixel map to the image.
-            pixels = image.load()
+            apply_line_interrupts(image_a, lineint, 0, palette_index_a)
 
-            for y, c, p1, p2 in zip(lineint[::4], lineint[1::4], lineint[2::4], lineint[3::4]):
+            if image_b:
+                apply_line_interrupts(image_b, lineint, 1, palette_index_b)
 
-                if p1 != p2:
-                    print("Two palettes (interrupt) differ, screen was flashing.")
+        save_args = {}
 
-                oldcolor = pindex[c]
-                newcolor = SAM_PALETTE[p1]
+        if image_b:
+            # Convert images to paletted, to avoid dither on export to GIF.
+            image_a = image_a.convert('P', palette=Image.ADAPTIVE)
+            image_b = image_b.convert('P', palette=Image.ADAPTIVE)
 
-                # This is inefficient (numpy?) but we've got small images.
-                for yp in range(y+1, 192):
-                    for x in range(0, 256):
-                        if pixels[x, yp] == oldcolor:
-                            pixels[x, yp] = newcolor
-
-                pindex[c] = newcolor
-
+            save_args = {'save_all': True, 'append_images': [image_b], 'duration':333, 'loop':0, 'interlace':False}
 
         if args.outfile:
             outfile = args.outfile
@@ -119,4 +151,5 @@ def main():
             filename, _ = os.path.splitext(fn)
             outfile = f'{filename}.{args.format}'
 
-        image.save(outfile)
+        image_a.save(outfile, **save_args)
+
