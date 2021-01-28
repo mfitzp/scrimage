@@ -63,7 +63,8 @@ def compress_non_overlapping(cssp):
         colors = sorted(colors, key=coverage)
 
         for n, a in enumerate(colors):
-            for b in colors[n:]:
+            blocks = colors[n:]
+            for b in blocks[::-1]:  # Reverse, smallest coverage into largest.
 
                 if not has_clash(cssp[a], cssp[b]):
                     to_combine = (a, b)
@@ -86,7 +87,6 @@ def simplify(cssp):
 
     # Decomplexify: if a given color still exists, and we fit, may as
     # well use it for it's own colors to minimize transitions & interrupts.
-
     csspr = cssp.copy()
     for k, v in cssp.items():
         for b in v:
