@@ -104,10 +104,10 @@ The following two GIFs are examples of export from SAM Coupe SCREEN$ when using
 flashing alternate palettes.
 
 ![Flashing palette](./examples/flash.gif)
-Flashing palette [Sam SCREEN$](./examples/flash.scr)
+Flashing palette
 
 ![Flashing palette](./examples/flashi.gif)
-Flashing palette and flashing Line interrupts [Sam SCREEN$](./examples/flashi.scr)
+Flashing palette and flashing Line interrupts
 
 
 
