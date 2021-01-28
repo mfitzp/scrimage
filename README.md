@@ -9,6 +9,8 @@ Install with `pip install scrimage` to access two command line utilities:
 * `sam2img` converts a SAM Coupe MODE 4 SCREEN$ to an image.
 * `img2sam` converts an image to a SAM Coupe MODE 4 SCREEN$
 
+See [this writeup for more information on how the conversion works](https://www.mfitzp.com/article/sam-coupe-image/).
+
 ## SAM2IMG
 
 ```
