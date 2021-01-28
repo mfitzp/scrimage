@@ -131,8 +131,7 @@ def calculate_color_regions(im, n_colors):
     """
     col = im.quantize(colors=n_colors, method=Image.MAXCOVERAGE, kmeans=1)
     pix = np.array(col)
-    cssp = color_start_stop_partial(pix)
-    return compress_non_overlapping(cssp)
+    return color_start_stop_partial(pix)
 
 
 def n_interrupts(regions):
@@ -150,7 +149,12 @@ def optimize(im, max_colors, total_n_colors):
     optimal_total_interrupts = 0
 
     for n_colors in range(max_colors, total_n_colors+1):
+        # Identify color regions.
         color_regions = calculate_color_regions(im, n_colors)
+
+        # Compress regions.
+        color_regions = compress_non_overlapping(color_regions)
+
         total_colors = len(color_regions)
 
         # Simplify our color regions.

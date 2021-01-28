@@ -129,7 +129,7 @@ def main():
             filename, _ = os.path.splitext(basename)
             outfile = f'{filename}.scr'
 
-        # Additional 4 bytes 0, 17, 34, 127; unknown.
+        # Additional 4 bytes 0, 17, 34, 127; mode 3 temporary store.
         bytes4 = b'\x00\x11\x22\x7F'
 
         # Ensure palette is 16.
